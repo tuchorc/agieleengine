@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import javax.xml.transform.Source;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,16 +22,20 @@ public class HtmlAnalyzer {
 	private static String CHARSET_NAME = "utf8";
 	private static final Logger log = LoggerFactory.getLogger(HtmlAnalyzer.class);
 
-	public String analyze(String pathToDocument, String elementId) {
-		File htmlFile = new File(pathToDocument);
+	public String analyze(String pathToDocument, String elementId, String source) {
 		Document doc;
 		try {
-			doc = Jsoup.parse(
-					htmlFile,
-					CHARSET_NAME,
-					htmlFile.getAbsolutePath());
-		} catch (IOException e) {
-			log.error("Error reading [{}] file", htmlFile.getAbsolutePath(), e);
+			if (source.equalsIgnoreCase("WEB")) {
+				doc = Jsoup.connect(pathToDocument).get();
+			} else {
+				File htmlFile = new File(pathToDocument);
+				doc = Jsoup.parse(
+						htmlFile,
+						CHARSET_NAME,
+						htmlFile.getAbsolutePath());
+			}
+
+		} catch (Exception e) {
 			return "Unexpected Exception";
 		}
 

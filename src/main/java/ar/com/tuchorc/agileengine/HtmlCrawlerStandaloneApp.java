@@ -29,12 +29,13 @@ public class HtmlCrawlerStandaloneApp implements CommandLineRunner {
 	public void run(String... args) throws Exception {
 		String document = (args.length > 0) ? args[0] : "samples/sample0/sample0.html";
 		String elementID = (args.length > 1) ? (args[1]) : "make-everything-ok-button";
+		String source = (args.length > 2) ? (args[2]) : "LOCAL";
 
 		try {
 			log.info("Analyzing file: " + document);
 			log.info("Looking for element ID: " + elementID);
 
-			String result = helper.analyze(document, elementID);
+			String result = helper.analyze(document, elementID, source);
 
 			log.info("Result element path: " + result);
 		} catch (Exception e) {
