@@ -1,0 +1,9 @@
+spring:
+  profiles:
+    active: default
+
+logging:
+  level:
+    root: ERROR
+    org.springframework.web: ERROR
+    ar.com.tuchorc.agileengine: INFO
