@@ -3,13 +3,11 @@ package ar.com.tuchorc.agileengine;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -41,8 +39,7 @@ public class HtmlAnalyzer {
 		try {
 			Optional<Element> result = Optional.of(doc.getElementById(elementId));
 			if (result.isPresent()) {
-				Element target = result.get();
-				return HtmlAnalyzer.getElementPath(target);
+				return HtmlAnalyzer.getElementPath(result.get());
 			}
 		} catch (NullPointerException ex) {
 			// element not found bu id
@@ -51,36 +48,33 @@ public class HtmlAnalyzer {
 		return searchDocumentForBestMatch(doc, elementId);
 	}
 
-	private String searchDocumentForBestMatch(Document doc, String elementId) {
-		Elements elements = doc.body().select("*");
-		List<ScoredElement> scoringList = new ArrayList<>(elements.size());
+	private String searchDocumentForBestMatch(Document doc, final String elementId) {
+		AtomicReference<ScoredElement> result = new AtomicReference<>();
+		doc.body().select("*").stream()
+				.map(e -> new ScoredElement(e, HtmlAnalyzer.score(e, elementId)))
+				.max((o1, o2) -> o1.getScore().compareTo(o2.getScore()))
+				.ifPresent(e -> result.set(e));
 
-		elements.forEach(element -> scoringList.add(new ScoredElement(element, HtmlAnalyzer.score(element, elementId))));
-
-		scoringList.sort((e1, e2) -> e2.getScore().compareTo(e1.getScore()));
-
-		ScoredElement result = scoringList.get(0);
-		if (result.getScore() == 0) {
+		if (result.get() == null || result.get().getScore().equals(0.0D)) {
 			return "No results found";
 		}
 
-		return getElementPath(result.getElement());
+		return getElementPath(result.get().getElement());
 	}
 
 	private static Double score(Element e, String targetId) {
-		List<String> words = Arrays.asList(targetId.split("-"));
-		int totalWords = words.size();
-		AtomicReference<Double> score = new AtomicReference<>(0.0);
-		e.attributes().forEach(a -> {
+		final List<String> words = Arrays.asList(targetId.split("-"));
+		final int totalWords = words.size();
+		return e.attributes().asList().stream().mapToDouble(a -> {
 			String value = a.getValue();
 			int foundWords = (int) words.stream().filter(value::contains).count();
 			if (foundWords > 0) {
 				Double partial = foundWords * 100.0 / totalWords;
 				int distance = LevenshteinDistance.computeLevenshteinDistance(value, targetId);
-				score.updateAndGet(v -> v + partial / (distance + 1));
+				return partial / (distance + 1);
 			}
-		});
-		return score.get();
+			return 0;
+		}).sum();
 	}
 
 	private static String getElementPath(Element element) {
@@ -92,7 +86,8 @@ public class HtmlAnalyzer {
 	private static void getParent(StringBuilder sb, Element element) {
 		sb.append(" > ");
 		sb.append(element.nodeName());
-		if (element.hasParent()) getParent(sb, element.parent());
+		if (element.hasParent())
+			getParent(sb, element.parent());
 	}
 
 	class ScoredElement {
