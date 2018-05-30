@@ -56,7 +56,7 @@ public class HtmlAnalyzer {
 		Elements elements = doc.body().select("*");
 		List<ScoredElement> scoringList = new ArrayList<>(elements.size());
 
-		elements.forEach( element -> scoringList.add(new ScoredElement(element, HtmlAnalyzer.score(element, elementId))) );
+		elements.forEach(element -> scoringList.add(new ScoredElement(element, HtmlAnalyzer.score(element, elementId))));
 
 		scoringList.sort((e1, e2) -> e2.getScore().compareTo(e1.getScore()));
 
@@ -90,14 +90,15 @@ public class HtmlAnalyzer {
 	}
 
 	private static String getElementPath(Element element) {
-		String path = element.toString();
+		StringBuilder sb = new StringBuilder(element.toString());
+		getParent(sb, element.parent());
+		return sb.toString();
+	}
 
-		while (element.hasParent()) {
-			element = element.parent();
-			path += " > " + element.nodeName();
-		}
-
-		return path;
+	private static void getParent(StringBuilder sb, Element element) {
+		sb.append(" > ");
+		sb.append(element.nodeName());
+		if (element.hasParent()) getParent(sb, element.parent());
 	}
 
 	class ScoredElement {
