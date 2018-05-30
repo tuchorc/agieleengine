@@ -56,9 +56,8 @@ public class HtmlAnalyzer {
 		Elements elements = doc.body().select("*");
 		List<ScoredElement> scoringList = new ArrayList<>(elements.size());
 
-		for (Element e : elements) {
-			scoringList.add(new ScoredElement(e, HtmlAnalyzer.score(e, elementId)));
-		}
+		elements.forEach( element -> scoringList.add(new ScoredElement(element, HtmlAnalyzer.score(element, elementId))) );
+
 		scoringList.sort((e1, e2) -> e2.getScore().compareTo(e1.getScore()));
 
 		ScoredElement result = scoringList.get(0);
