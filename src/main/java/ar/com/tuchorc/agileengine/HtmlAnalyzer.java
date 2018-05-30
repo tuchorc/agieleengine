@@ -1,7 +1,6 @@
 package ar.com.tuchorc.agileengine;
 
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -9,12 +8,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.xml.transform.Source;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Component
 public class HtmlAnalyzer {
@@ -69,24 +68,19 @@ public class HtmlAnalyzer {
 	}
 
 	private static Double score(Element e, String targetId) {
-		String[] words = targetId.split("-");
-		int totalWords = words.length;
-		Double score = 0.0;
-		for (Attribute a : e.attributes()) {
+		List<String> words = Arrays.asList(targetId.split("-"));
+		int totalWords = words.size();
+		AtomicReference<Double> score = new AtomicReference<>(0.0);
+		e.attributes().forEach(a -> {
 			String value = a.getValue();
-			int foundWords = 0;
-			for (String word : words) {
-				if (value.contains(word)){
-					foundWords++;
-				}
-			}
+			int foundWords = (int) words.stream().filter(value::contains).count();
 			if (foundWords > 0) {
 				Double partial = foundWords * 100.0 / totalWords;
 				int distance = LevenshteinDistance.computeLevenshteinDistance(value, targetId);
-				score += partial / distance;
+				score.updateAndGet(v -> v + partial / (distance + 1));
 			}
-		}
-		return score;
+		});
+		return score.get();
 	}
 
 	private static String getElementPath(Element element) {
