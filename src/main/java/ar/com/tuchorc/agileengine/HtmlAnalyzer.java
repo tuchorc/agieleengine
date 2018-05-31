@@ -8,10 +8,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Component
 public class HtmlAnalyzer {
@@ -19,47 +19,35 @@ public class HtmlAnalyzer {
 	private static String CHARSET_NAME = "utf8";
 	private static final Logger log = LoggerFactory.getLogger(HtmlAnalyzer.class);
 
-	public String analyze(String pathToDocument, String elementId, String source) {
+	public Optional<Element> analyze(String pathToDocument, String elementId, String source) throws IOException {
 		Document doc;
+		if (source.equalsIgnoreCase("WEB")) {
+			doc = Jsoup.connect(pathToDocument).get();
+		} else {
+			File htmlFile = new File(pathToDocument);
+			doc = Jsoup.parse(
+					htmlFile,
+					CHARSET_NAME,
+					htmlFile.getAbsolutePath());
+		}
+		Optional<Element> result = Optional.ofNullable(null);
 		try {
-			if (source.equalsIgnoreCase("WEB")) {
-				doc = Jsoup.connect(pathToDocument).get();
-			} else {
-				File htmlFile = new File(pathToDocument);
-				doc = Jsoup.parse(
-						htmlFile,
-						CHARSET_NAME,
-						htmlFile.getAbsolutePath());
-			}
-
+			result = Optional.of(doc.getElementById(elementId));
 		} catch (Exception e) {
-			return "Unexpected Exception";
 		}
 
-		try {
-			Optional<Element> result = Optional.of(doc.getElementById(elementId));
-			if (result.isPresent()) {
-				return HtmlAnalyzer.getElementPath(result.get());
-			}
-		} catch (NullPointerException ex) {
-			// element not found bu id
-		}
+		if (! result.isPresent())
+			result = searchDocumentForBestMatch(doc, elementId);
 
-		return searchDocumentForBestMatch(doc, elementId);
+		return result;
 	}
 
-	private String searchDocumentForBestMatch(Document doc, final String elementId) {
-		AtomicReference<ScoredElement> result = new AtomicReference<>();
-		doc.body().select("*").stream()
+	private Optional<Element> searchDocumentForBestMatch(Document doc, final String elementId) {
+		return doc.body().select("*").parallelStream()
 				.map(e -> new ScoredElement(e, HtmlAnalyzer.score(e, elementId)))
 				.max((o1, o2) -> o1.getScore().compareTo(o2.getScore()))
-				.ifPresent(e -> result.set(e));
-
-		if (result.get() == null || result.get().getScore().equals(0.0D)) {
-			return "No results found";
-		}
-
-		return getElementPath(result.get().getElement());
+				.filter(se -> se.getScore().compareTo(0.0D) > 0)
+				.map(se -> se.getElement());
 	}
 
 	private static Double score(Element e, String targetId) {
@@ -77,10 +65,13 @@ public class HtmlAnalyzer {
 		}).sum();
 	}
 
-	private static String getElementPath(Element element) {
-		StringBuilder sb = new StringBuilder(element.toString());
-		getParent(sb, element.parent());
-		return sb.toString();
+	public static String getElementPath(Optional<Element> element) {
+		return element.map(e -> {
+			StringBuilder sb = new StringBuilder();
+			sb.append(e.toString());
+			getParent(sb, e.parent());
+			return sb.toString();
+		}).orElse("No data found");
 	}
 
 	private static void getParent(StringBuilder sb, Element element) {
@@ -107,7 +98,6 @@ public class HtmlAnalyzer {
 		public Double getScore() {
 			return score;
 		}
-
 	}
 
 }

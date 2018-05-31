@@ -35,7 +35,7 @@ public class HtmlCrawlerStandaloneApp implements CommandLineRunner {
 			log.info("Analyzing file: " + document);
 			log.info("Looking for element ID: " + elementID);
 
-			String result = helper.analyze(document, elementID, source);
+			String result = HtmlAnalyzer.getElementPath(helper.analyze(document, elementID, source));
 
 			log.info("Result element path: " + result);
 		} catch (Exception e) {
